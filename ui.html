@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head><style>
+  body { font: 13px/1.5 -apple-system, sans-serif; margin: 0; padding: 16px; color: #1a1a1a; }
+  h3 { margin: 0 0 12px; font-size: 14px; }
+  button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid #d4d4d8; background: #fff; cursor: pointer; display: block; width: 100%; margin-bottom: 8px; text-align: left; }
+  button.primary { background: #CD1722; color: #fff; border-color: #CD1722; }
+  button:hover { border-color: #CD1722; }
+  textarea { width: 100%; height: 110px; font: 11px/1.4 monospace; border: 1px solid #d4d4d8; border-radius: 6px; padding: 6px; box-sizing: border-box; }
+  #report { max-height: 160px; overflow: auto; font: 11px/1.5 monospace; background: #f4f4f5; border-radius: 6px; padding: 8px; white-space: pre-wrap; display: none; }
+  .status { color: #52525b; font-size: 12px; margin-top: 8px; }
+</style></head>
+<body>
+<h3>SIS Sync — design ↔ code</h3>
+<button class="primary" id="build">Build components on Core Components</button>
+<button id="baseline">Copy baseline JSON</button>
+<button id="compare">Compare with pasted baseline</button>
+<textarea id="baseline" placeholder="Paste the saved baseline JSON here, then press Compare…"></textarea>
+<div id="report"></div>
+<div class="status" id="status">Ready.</div>
+<script>
+  document.getElementById("build").onclick = () => {
+    parent.postMessage({ pluginMessage: { type: "build" } }, "*");
+    document.getElementById("status").textContent = "Building…";
+  };
+  document.getElementById("baseline").onclick = () => {
+    parent.postMessage({ pluginMessage: { type: "baseline" } }, "*");
+  };
+  document.getElementById("compare").onclick = () => {
+    const v = document.getElementById("baseline").value.trim();
+    if (!v) { document.getElementById("status").textContent = "Paste a baseline JSON first."; return; }
+    parent.postMessage({ pluginMessage: { type: "compare", json: v } }, "*");
+  };
+  onmessage = (event) => {
+    const msg = event.data.pluginMessage;
+    if (!msg) return;
+    if (msg.type === "done") {
+      document.getElementById("status").textContent = "Built: " + msg.created.join(", ");
+    }
+    if (msg.type === "baseline") {
+      const ta = document.getElementById("baseline");
+      ta.value = msg.json;
+      ta.select();
+      document.execCommand("copy");
+      document.getElementById("status").textContent = "Baseline copied to clipboard. Save it as qa/figma-baseline.json and commit.";
+      document.getElementById("report").style.display = "block";
+      document.getElementById("report").textContent = "Baseline: " + msg.json.length + " chars";
+    }
+    if (msg.type === "compareResult") {
+      const r = msg.report;
+      const rep = document.getElementById("report");
+      rep.style.display = "block";
+      rep.textContent =
+        "ADDED (" + r.added.length + "):\n" + r.added.join("\n") +
+        "\n\nREMOVED (" + r.removed.length + "):\n" + r.removed.join("\n") +
+        "\n\nCHANGED (" + r.changed.length + "):\n" + r.changed.map(c => {
+          const diffs = [];
+          if (JSON.stringify(c.before.fills) !== JSON.stringify(c.after.fills)) diffs.push("fills " + JSON.stringify(c.before.fills) + " → " + JSON.stringify(c.after.fills));
+          if (JSON.stringify(c.before.texts) !== JSON.stringify(c.after.texts)) diffs.push("texts " + JSON.stringify(c.before.texts) + " → " + JSON.stringify(c.after.texts));
+          if (c.before.width !== c.after.width || c.before.height !== c.after.height) diffs.push("size " + c.before.width + "×" + c.before.height + " → " + c.after.width + "×" + c.after.height);
+          return c.key + ": " + diffs.join("; ");
+        }).join("\n");
+      document.getElementById("status").textContent = "Compare done. " + r.added.length + " added, " + r.removed.length + " removed, " + r.changed.length + " changed.";
+    }
+  };
+</script>
+</body>
+</html>
