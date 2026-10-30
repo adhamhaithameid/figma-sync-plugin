@@ -152,7 +152,9 @@ async function buildFoundations() {
   const spaceRow = frame("spacing", "VERTICAL", 0, 8);
   for (const [name, px] of [["0", 0], ["2", 2], ["4", 4], ["6", 6], ["8", 8], ["12", 12], ["16", 16], ["24", 24], ["32", 32], ["48", 48], ["64", 64]]) {
     const row = frame("space-" + name, "HORIZONTAL", 0, 12);
-    row.appendChild(mkText("space-" + name, 11, "Regular", light.muted)).resize(120, 16);
+    const lbl = mkText("space-" + name, 11, "Regular", light.muted);
+    lbl.resize(120, 16);
+    row.appendChild(lbl);
     const bar = figma.createRectangle();
     bar.resize(px || 1, 12);
     bar.fills = [solid(T.brand500)];
